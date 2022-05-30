@@ -42,7 +42,7 @@ async function generateDiscordStatusImg(db, discordId) {
             ctx.drawImage(avatarImage, circle.x - hsx, circle.y - hsy, hsx * 2, hsy * 2);
             // ctx.drawImage(avatarImage, 0, 0, 25, 25);
             ctx.drawImage(statusImage, circle.x - hsx + 18, circle.y - hsy + 18, 8, 8);
-            const finalCanvas = createCanvas(200, 100, 'svg');
+            const finalCanvas = createCanvas(200, 40, 'svg');
             const finalContext = finalCanvas.getContext('2d');
             finalContext.drawImage(canvas, 5, 5);
             finalContext.fillStyle = 'white';
