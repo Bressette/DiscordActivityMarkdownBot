@@ -42,27 +42,14 @@ async function generateDiscordStatusImg(db, discordId) {
             ctx.drawImage(avatarImage, circle.x - hsx, circle.y - hsy, hsx * 2, hsy * 2);
             // ctx.drawImage(avatarImage, 0, 0, 25, 25);
             ctx.drawImage(statusImage, circle.x - hsx + 18, circle.y - hsy + 18, 8, 8);
-            const finalCanvas = createCanvas(500, 500, 'svg');
+            const finalCanvas = createCanvas(200, 100, 'svg');
             const finalContext = finalCanvas.getContext('2d');
             finalContext.drawImage(canvas, 5, 5);
+            finalContext.fillStyle = 'white';
             finalContext.fillText(usernameDiscriminator, 45, 27);
             resolve(finalCanvas.toBuffer());
         });
     });
-
-//     // Write "Awesome!"
-//     ctx.font = '30px Impact';
-//     ctx.rotate(0.1);
-//     ctx.fillText('Awesome!', 50, 100);
-//
-// // Draw line under text
-//     var text = ctx.measureText('Awesome!');
-//     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-//     ctx.beginPath();
-//     ctx.lineTo(50, 102);
-//     ctx.lineTo(50 + text.width, 102);
-//     ctx.stroke();
-//     return canvas.toBuffer();
 }
 
 module.exports = {

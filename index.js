@@ -17,7 +17,7 @@ client.login(config.token);
 const Datastore = require('nedb')
     , db = new Datastore({filename: 'data', autoload: true});
 
-// run setinterval here to update
+//updates user info username / avatar every 5 minutes
 setInterval(async function updateUserActivity() {
     const guilds = await client.guilds.fetch();
     const allMembers = await Promise.all(guilds.map(async val => {
@@ -26,70 +26,105 @@ setInterval(async function updateUserActivity() {
     }));
     for(const guildMembers of allMembers) {
         for(const member of [...guildMembers]) {
-            db.findOne({id: member.id}, (err, res) => {
-                const id = member[1].id;
-                const username = member[1].user.username;
-                const discriminator = member[1].user.discriminator;
-                const avatarUrl = member[1].user.avatarURL({format: "png"});
-                if(member[1].presence === null) {
-                    const memberActivity = {
-                        id,
-                        username,
-                        discriminator,
-                        avatarUrl
-                    };
-                    if (res) {
-                        db.update({id: id}, memberActivity, {}, function (err, numReplaced) {});
-                    } else {
-                        db.insert(memberActivity);
-                    }
-                }
-                else {
-                    const status = member[1].presence.status;
-                    const activities = member[1].presence.activities;
-                    const customStatus = activities.find(s => s.id === 'custom');
-                    const currentActivity = activities.find(s => s.id !== 'custom');
-                    const largeImageUrl = currentActivity?.assets?.largeImageURL();
-                    const smallImageUrl = currentActivity?.assets?.smallImageURL();
-                    const smallText = currentActivity?.assets?.smallText;
-                    const largeText = currentActivity?.assets?.largeText;
-
-                    const memberActivity = {
-                        id,
-                        username,
-                        discriminator,
-                        avatarUrl,
-                        customStatus: customStatus?.state,
-                        currentStatus: status,
-                        currentActivityName: currentActivity?.name,
-                        currentActivityType: currentActivity?.type,
-                        currentActivityDetails: currentActivity?.details,
-                        currentActivityAssets: {
-                            largeText,
-                            smallText,
-                            largeImageUrl,
-                            smallImageUrl
-                        },
-                        timestamp: Date.now()
-                    };
-                    if (res) {
-                        db.update({id: id}, memberActivity, {}, function (err, numReplaced) {});
-                    } else {
-                        db.insert(memberActivity);
-                    }
-                }
-            });
+            updateUserPresenceInfo(member[1]);
         }
     }
     db.persistence.compactDatafile();
-}, 5000);
+}, 300000);
+
+function updateUserPresenceInfo(member) {
+    const id = member.id;
+    const username = member.user.username;
+    const discriminator = member.user.discriminator;
+    const avatarUrl = member.user.avatarURL({format: "png"});
+    if(member.presence === null) {
+        const memberActivity = {
+            id,
+            username,
+            discriminator,
+            avatarUrl
+        };
+        db.update({id: id}, memberActivity, {upsert: true}, function (err, numReplaced) {});
+    }
+    else {
+        const status = member.presence.status;
+        const activities = member.presence.activities;
+        const customStatus = activities.find(s => s.id === 'custom');
+        const currentActivity = activities.find(s => s.id !== 'custom');
+        const largeImageUrl = currentActivity?.assets?.largeImageURL();
+        const smallImageUrl = currentActivity?.assets?.smallImageURL();
+        const smallText = currentActivity?.assets?.smallText;
+        const largeText = currentActivity?.assets?.largeText;
+
+        const memberActivity = {
+            id,
+            username,
+            discriminator,
+            avatarUrl,
+            customStatus: customStatus?.state,
+            currentStatus: status,
+            currentActivityName: currentActivity?.name,
+            currentActivityType: currentActivity?.type,
+            currentActivityDetails: currentActivity?.details,
+            currentActivityAssets: {
+                largeText,
+                smallText,
+                largeImageUrl,
+                smallImageUrl
+            },
+            timestamp: Date.now()
+        };
+        db.update({id: id}, memberActivity, {upsert: true}, function (err, numReplaced) {});
+    }
+}
+
+// updates user status info custom status, status, and activity
+// and persists a record of an activity session if it has a start and end timestamp
+function updateUserStatus(userId, status, activities) {
+    const customStatus = activities.find(s => s.id === 'custom');
+    const currentActivity = activities.find(s => s.id !== 'custom');
+    const largeImageUrl = currentActivity?.assets?.largeImageURL();
+    const smallImageUrl = currentActivity?.assets?.smallImageURL();
+    const smallText = currentActivity?.assets?.smallText;
+    const largeText = currentActivity?.assets?.largeText;
+    const statusInfo = {
+        customStatus: customStatus?.state,
+        currentStatus: status,
+        currentActivityName: currentActivity?.name,
+        currentActivityType: currentActivity?.type,
+        currentActivityDetails: currentActivity?.details,
+        currentActivityAssets: {
+            largeText,
+            smallText,
+            largeImageUrl,
+            smallImageUrl
+        },
+    };
+    db.update({id: userId}, statusInfo, {}, function (err, numReplaced) {});
+    if (currentActivity?.timestamps?.end !== undefined) {
+        const userActivitySession = {
+            id: userId,
+            currentActivityName: currentActivity?.name,
+            currentActivityType: currentActivity?.type,
+            currentActivityDetails: currentActivity?.details,
+            currentActivityAssets: {
+                largeText,
+                smallText,
+                largeImageUrl,
+                smallImageUrl
+            },
+            timestamps: {
+                startTime: currentActivity.timestamps.start,
+                endTime: currentActivity.timestamps.end
+            }
+        };
+        db.insert(userActivitySession);
+    }
+}
 
 // implement presenceUpdate to record the history of discord activity for a user
 client.on("presenceUpdate", (oldMember, newMember) => {
-    // if the custom status has changed or the user now has a custom status update it
-    // if the currentActivity name, type, description, icon change update it
-    // if the new activity is different than the old activity set the timestamps from the old activity
-    //persist the user if they have not been persisted before
+    updateUserStatus(newMember.userId, newMember.status, newMember.activities);
 });
 
 app.listen(port, () => {
