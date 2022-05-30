@@ -131,7 +131,7 @@ app.listen(port, () => {
     console.log(`App listening at port: ${port}`);
 })
 
-app.get('/getDiscordStatus/:id',async (req, res) => {
+app.get('/discordStatus/getDiscordStatus/:id',async (req, res) => {
     res.contentType('image/svg+xml')
     res.send(await generateImages.generateDiscordStatusImg(db, req.params.id));
 });
